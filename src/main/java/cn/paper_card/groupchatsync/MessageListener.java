@@ -1,48 +1,34 @@
 package cn.paper_card.groupchatsync;
 
-import me.dreamvoid.miraimc.api.MiraiBot;
 import me.dreamvoid.miraimc.api.MiraiMC;
-import me.dreamvoid.miraimc.api.bot.MiraiGroup;
 import me.dreamvoid.miraimc.bukkit.event.message.passive.MiraiGroupMessageEvent;
-import net.kyori.adventure.text.Component;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 
-import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.UUID;
 
 public class MessageListener implements Listener {
 
-    private final static long QQ_GROUP = 706926037L;
-
     private final GroupChatSync plugin;
+
+
 
     public MessageListener(GroupChatSync plugin) {
         this.plugin = plugin;
     }
 
-    // 通过在线的QQ机器人获取QQ群
-    private MiraiGroup getGroup() {
-        MiraiGroup group = null;
-        final List<Long> onlineBots = MiraiBot.getOnlineBots();
-        for (final Long id : onlineBots) {
-            try {
-                final MiraiBot bot = MiraiBot.getBot(id);
-                group = bot.getGroup(QQ_GROUP);
-                if (group != null) break;
-            }  catch (NoSuchElementException e) {
-                this.plugin.getLogger().severe(e.getLocalizedMessage());
-            }
-        }
-        return group;
-    }
 
     @EventHandler
     public void onGroupMessage(MiraiGroupMessageEvent event) {
-        if (event.getGroupID() != QQ_GROUP) return;
+
+        // 同步消息功能被禁用了
+        if (!this.plugin.getConfigManager().isGroupChatSyncEnable()) return;
+
+        // 非特定群聊消息
+        if (event.getGroupID() != this.plugin.getConfigManager().getQQGroupID()) return;
 
         final String message = event.getMessage();
 
@@ -57,21 +43,27 @@ public class MessageListener implements Listener {
 
         if (name == null) return; // 无法获取玩家ID
 
-        // 广播消息
-        this.plugin.getServer().getScheduler().runTask(this.plugin,
-                () -> MessageListener.this.plugin.getServer().broadcast(Component.text
-                        ("<" + name + "> " + message)
-                )
-        );
+        this.plugin.sendMessageToGameLater("<" + name + "> " + message);
     }
 
     @EventHandler
     public void onPlayerChat(AsyncPlayerChatEvent event) {
         // todo : AsyncPlayerChatEvent 被废弃了，但是不知道应该用什么代替
 
-        final MiraiGroup group = this.getGroup();
-        if (group == null) return;
+        // 游戏内聊天同步功能被禁用。
+        if (!this.plugin.getConfigManager().isGameChatSyncEnable()) return;
 
-        group.sendMessage( "<" + event.getPlayer().getName() + "> " +event.getMessage());
+        final Player player = event.getPlayer();
+
+        // 一个周期内为一个玩家同步的消息数量最大为2
+        if (this.plugin.getPlayerMessageCountPeriod().getCount(player) > 2) return;
+
+        // 周期内消息数量加一
+        this.plugin.getPlayerMessageCountPeriod().addCount(player);
+
+        final String message = "<" + event.getPlayer().getName() + "> " +event.getMessage();
+
+        // 消息进入队列等待转发
+        this.plugin.sendMessageToGroupLater(message);
     }
 }

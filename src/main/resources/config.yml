@@ -1,0 +1,6 @@
+
+# 是否同步游戏消息到QQ群中
+game_chat_sync_enable: true
+
+# 是否同步QQ群消息到游戏中
+group_chat_sync_enable: true
