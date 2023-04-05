@@ -1,0 +1,4 @@
+name: GroupChatSync
+version: '${project.version}'
+main: cn.paper_card.groupchatsync.GroupChatSync
+api-version: 1.19
