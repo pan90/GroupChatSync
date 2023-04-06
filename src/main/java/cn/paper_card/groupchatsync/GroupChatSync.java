@@ -93,7 +93,7 @@ public final class GroupChatSync extends JavaPlugin {
                 if (group_msg != null) {
                     GroupChatSync.this.getServer().broadcast(Component.text(group_msg));
                 }
-            }, 0, 20);
+            }, 40, 40);
         }
 
         if (this.taskResetCount == null) {

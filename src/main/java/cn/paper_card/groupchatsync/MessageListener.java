@@ -20,9 +20,38 @@ public class MessageListener implements Listener {
         this.plugin = plugin;
     }
 
+    // 判断是否为群管理员的消息
+    private boolean isGroupAdmin(MiraiGroupMessageEvent event) {
+        return event.getSenderPermission() >= 1;
+    }
+
+    private boolean handleAdminCommand(MiraiGroupMessageEvent event) {
+        if (!this.isGroupAdmin(event)) return false;
+
+        if ("游戏消息同步开启".equals(event.getMessage())) {
+            this.plugin.getConfigManager().setGameChatSyncEnable(true);
+            this.plugin.sendMessageToGroupLater("游戏消息同步已开启");
+            this.plugin.sendMessageToGameLater("游戏消息同步已开启，您的聊天消息可能会被同步到QQ群聊。");
+            return true;
+        }
+
+        if ("游戏消息同步关闭".equals(event.getMessage())) {
+            this.plugin.getConfigManager().setGameChatSyncEnable(false);
+            this.plugin.sendMessageToGroupLater("游戏消息同步已关闭");
+            this.plugin.sendMessageToGameLater("游戏消息同步已关闭，您的聊天消息将不会被同步到QQ群聊。");
+            return true;
+        }
+
+        return false;
+    }
 
     @EventHandler
     public void onGroupMessage(MiraiGroupMessageEvent event) {
+
+        // 处理管理员指令
+        if (this.handleAdminCommand(event)) {
+            return;
+        }
 
         // 同步消息功能被禁用了
         if (!this.plugin.getConfigManager().isGroupChatSyncEnable()) return;
