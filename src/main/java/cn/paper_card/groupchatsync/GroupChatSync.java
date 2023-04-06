@@ -24,16 +24,26 @@ public final class GroupChatSync extends JavaPlugin {
 
     private final PlayerMessageCountPeriod playerMessageCountPeriod;
 
+    private final MemberMessageCountPeriod memberMessageCountPeriod;
+
+    private final PlayerChatMsgCountPeriod playerChatMsgCountPeriod;
+
     // 转发游戏内消息到QQ群的任务
     private BukkitTask task = null;
 
     private BukkitTask taskResetCount = null;
+
+    private BukkitTask taskResetMemberMsgCount = null;
+
+    private BukkitTask taskResetPlayerMsgCount = null;
 
     public GroupChatSync() {
         this.game_message = new ConcurrentLinkedQueue<>();
         this.group_message = new ConcurrentLinkedQueue<>();
         this.configManager = new ConfigManager(this);
         this.playerMessageCountPeriod = new PlayerMessageCountPeriod();
+        this.memberMessageCountPeriod = new MemberMessageCountPeriod();
+        this.playerChatMsgCountPeriod = new PlayerChatMsgCountPeriod();
     }
 
     public ConfigManager getConfigManager() {
@@ -42,6 +52,14 @@ public final class GroupChatSync extends JavaPlugin {
 
     public PlayerMessageCountPeriod getPlayerMessageCountPeriod() {
         return this.playerMessageCountPeriod;
+    }
+
+    public MemberMessageCountPeriod getMemberMessageCountPeriod() {
+        return this.memberMessageCountPeriod;
+    }
+
+    public PlayerChatMsgCountPeriod getPlayerChatMsgCountPeriod() {
+        return this.playerChatMsgCountPeriod;
     }
 
     // 通过在线的QQ机器人获取QQ群
@@ -99,7 +117,17 @@ public final class GroupChatSync extends JavaPlugin {
         if (this.taskResetCount == null) {
             this.taskResetCount = this.getServer().getScheduler().runTaskTimerAsynchronously(this,
                     GroupChatSync.this.playerMessageCountPeriod::clearAll,
-                    0, 20 * 60 /* 一分钟重置一次 */ );
+                    2 * 20, 20 * 60 /* 一分钟重置一次 */ );
+        }
+
+        if (this.taskResetMemberMsgCount == null) {
+            this.taskResetMemberMsgCount = this.getServer().getScheduler().runTaskTimerAsynchronously
+                    (this, GroupChatSync.this.memberMessageCountPeriod::clearAll, 2*20, 10*20 /* 20秒重置一次 */);
+        }
+
+        if (this.taskResetPlayerMsgCount == null) {
+            this.taskResetPlayerMsgCount = this.getServer().getScheduler().runTaskTimerAsynchronously
+                    (this, GroupChatSync.this.playerChatMsgCountPeriod::clearAll, 2*20, 10*20);
         }
     }
 
@@ -117,6 +145,16 @@ public final class GroupChatSync extends JavaPlugin {
         if (this.taskResetCount != null && !this.taskResetCount.isCancelled()) {
             this.taskResetCount.cancel();
             this.taskResetCount = null;
+        }
+
+        if (this.taskResetMemberMsgCount != null && !this.taskResetMemberMsgCount.isCancelled()) {
+            this.taskResetMemberMsgCount.cancel();
+            this.taskResetMemberMsgCount = null;
+        }
+
+        if (this.taskResetPlayerMsgCount != null && !this.taskResetPlayerMsgCount.isCancelled()) {
+            this.taskResetPlayerMsgCount.cancel();
+            this.taskResetPlayerMsgCount = null;
         }
     }
 }

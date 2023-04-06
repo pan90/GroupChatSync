@@ -53,6 +53,14 @@ public class MessageListener implements Listener {
             return;
         }
 
+        // 自动禁言QQ群成员消息
+        final MemberMessageCountPeriod memberMessageCountPeriod = this.plugin.getMemberMessageCountPeriod();
+        if (memberMessageCountPeriod.addCount(event.getSenderID()) > 2) {
+            // 消息太过频繁，禁言1分钟
+            event.getGroup().getMember(event.getSenderID()).setMute(60);
+            return;
+        }
+
         // 同步消息功能被禁用了
         if (!this.plugin.getConfigManager().isGroupChatSyncEnable()) return;
 
@@ -78,6 +86,17 @@ public class MessageListener implements Listener {
     @EventHandler
     public void onPlayerChat(AsyncPlayerChatEvent event) {
         // todo : AsyncPlayerChatEvent 被废弃了，但是不知道应该用什么代替
+
+        // 游戏内自动禁言
+        if (this.plugin.getPlayerChatMsgCountPeriod().addCount(event.getPlayer()) > 3) {
+
+            this.plugin.getServer().getScheduler().runTask(this.plugin, () -> {
+                // 使用ESS的禁言命令禁言
+                this.plugin.getServer().dispatchCommand(this.plugin.getServer().getConsoleSender(),
+                        "mute " + event.getPlayer().getName() + " 1m 刷屏自动禁言");
+            });
+            return;
+        }
 
         // 游戏内聊天同步功能被禁用。
         if (!this.plugin.getConfigManager().isGameChatSyncEnable()) return;
