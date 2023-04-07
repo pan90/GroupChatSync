@@ -15,7 +15,6 @@ public class MessageListener implements Listener {
     private final GroupChatSync plugin;
 
 
-
     public MessageListener(GroupChatSync plugin) {
         this.plugin = plugin;
     }
@@ -48,6 +47,9 @@ public class MessageListener implements Listener {
     @EventHandler
     public void onGroupMessage(MiraiGroupMessageEvent event) {
 
+        // 屏蔽其它群聊的消息
+        if (event.getGroupID() != this.plugin.getConfigManager().getQQGroupID()) return;
+
         // 处理管理员指令
         if (this.handleAdminCommand(event)) {
             return;
@@ -55,17 +57,20 @@ public class MessageListener implements Listener {
 
         // 自动禁言QQ群成员消息
         final MemberMessageCountPeriod memberMessageCountPeriod = this.plugin.getMemberMessageCountPeriod();
-        if (memberMessageCountPeriod.addCount(event.getSenderID()) > 2) {
-            // 消息太过频繁，禁言1分钟
-            event.getGroup().getMember(event.getSenderID()).setMute(60);
+        if (memberMessageCountPeriod.addCount(event.getSenderID()) > 3) {
+            // 机器人可能没有禁言权限
+            if (event.getGroup().getBotPermission() > 0) {
+                // 消息太过频繁，禁言1分钟
+                event.getGroup().getMember(event.getSenderID()).setMute(60);
+            } else {
+                this.plugin.getLogger().severe
+                        ("机器人[" + event.getBotID() + "]在群聊[" + event.getGroupID() + "]中没有管理员权限，无法自动禁言！");
+            }
             return;
         }
 
         // 同步消息功能被禁用了
         if (!this.plugin.getConfigManager().isGroupChatSyncEnable()) return;
-
-        // 非特定群聊消息
-        if (event.getGroupID() != this.plugin.getConfigManager().getQQGroupID()) return;
 
         final String message = event.getMessage();
 
@@ -109,7 +114,7 @@ public class MessageListener implements Listener {
         // 周期内消息数量加一
         this.plugin.getPlayerMessageCountPeriod().addCount(player);
 
-        final String message = "<" + event.getPlayer().getName() + "> " +event.getMessage();
+        final String message = "<" + event.getPlayer().getName() + "> " + event.getMessage();
 
         // 消息进入队列等待转发
         this.plugin.sendMessageToGroupLater(message);
