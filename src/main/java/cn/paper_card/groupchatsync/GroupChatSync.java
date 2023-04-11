@@ -3,6 +3,9 @@ package cn.paper_card.groupchatsync;
 import me.dreamvoid.miraimc.api.MiraiBot;
 import me.dreamvoid.miraimc.api.bot.MiraiGroup;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.HoverEvent;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.NotNull;
@@ -18,7 +21,7 @@ public final class GroupChatSync extends JavaPlugin {
     private final ConcurrentLinkedQueue<String> game_message;
 
     // 等待转发到游戏内的QQ群消息
-    private final ConcurrentLinkedQueue<String> group_message;
+    private final ConcurrentLinkedQueue<GroupMessage> group_message;
 
     private final ConfigManager configManager;
 
@@ -30,6 +33,7 @@ public final class GroupChatSync extends JavaPlugin {
 
     // 转发游戏内消息到QQ群的任务
     private BukkitTask task = null;
+
 
     private BukkitTask taskResetCount = null;
 
@@ -72,19 +76,38 @@ public final class GroupChatSync extends JavaPlugin {
                 final MiraiBot bot = MiraiBot.getBot(id);
                 group = bot.getGroup(this.configManager.getQQGroupID());
                 if (group != null) break;
-            }  catch (NoSuchElementException e) {
+            } catch (NoSuchElementException e) {
                 this.getLogger().severe(e.getClass().getName() + ": " + e.getLocalizedMessage());
             }
         }
         return group;
     }
 
-    public void sendMessageToGroupLater(@NotNull String message) {
-        this.game_message.offer(message);
+    public void sendMessageToGroupLater(@NotNull String msg) {
+        this.game_message.offer(msg);
     }
 
-    public void sendMessageToGameLater(@NotNull String message) {
-        this.group_message.offer(message);
+    public void sendMessageToGameLater(@NotNull GroupMessage groupMessage) {
+        this.group_message.offer(groupMessage);
+    }
+
+    private void broadcastGroupMessage(GroupMessage groupMessage) {
+
+
+        final Component component =
+                Component.text()
+                        .append(Component.text("<").decorate(TextDecoration.BOLD).color(NamedTextColor.AQUA))
+                        .append(Component.text(groupMessage.getPlayerName()).hoverEvent(
+                                HoverEvent.showText(Component.text("QQ: " + groupMessage.getQQ()))
+                        ).decorate(TextDecoration.ITALIC))
+                        .append(Component.text(">").decorate(TextDecoration.BOLD).color(NamedTextColor.AQUA))
+                        .append(Component.text(" " + groupMessage.getMessage()))
+                        .build();
+
+
+        // 游戏内广播消息
+        this.getServer().getScheduler().runTask(GroupChatSync.this,
+                () -> GroupChatSync.this.getServer().broadcast(component));
     }
 
     @Override
@@ -96,7 +119,7 @@ public final class GroupChatSync extends JavaPlugin {
         this.getServer().getPluginManager().registerEvents(new MessageListener(this), this);
 
         if (this.task == null) {
-            // 每20个tick检查队列中有没有消息要发送的群聊中。
+            // 定时检查队列中有没有消息要发送的群聊中。
             this.task = this.getServer().getScheduler().runTaskTimerAsynchronously(this, () -> {
 
                 // 转发游戏消息到群里中
@@ -107,9 +130,10 @@ public final class GroupChatSync extends JavaPlugin {
                 }
 
                 // 转发群消息到游戏中
-                final String group_msg = GroupChatSync.this.group_message.poll();
+                final GroupMessage group_msg = GroupChatSync.this.group_message.poll();
                 if (group_msg != null) {
-                    GroupChatSync.this.getServer().broadcast(Component.text(group_msg));
+                    // 游戏内广播消息
+                    this.broadcastGroupMessage(group_msg);
                 }
             }, 40, 40);
         }
@@ -117,17 +141,17 @@ public final class GroupChatSync extends JavaPlugin {
         if (this.taskResetCount == null) {
             this.taskResetCount = this.getServer().getScheduler().runTaskTimerAsynchronously(this,
                     GroupChatSync.this.playerMessageCountPeriod::clearAll,
-                    2 * 20, 20 * 60 /* 一分钟重置一次 */ );
+                    2 * 20, 20 * 60 /* 一分钟重置一次 */);
         }
 
         if (this.taskResetMemberMsgCount == null) {
             this.taskResetMemberMsgCount = this.getServer().getScheduler().runTaskTimerAsynchronously
-                    (this, GroupChatSync.this.memberMessageCountPeriod::clearAll, 2*20, 10*20 /* 20秒重置一次 */);
+                    (this, GroupChatSync.this.memberMessageCountPeriod::clearAll, 2 * 20, 10 * 20 /* 20秒重置一次 */);
         }
 
         if (this.taskResetPlayerMsgCount == null) {
             this.taskResetPlayerMsgCount = this.getServer().getScheduler().runTaskTimerAsynchronously
-                    (this, GroupChatSync.this.playerChatMsgCountPeriod::clearAll, 2*20, 10*20);
+                    (this, GroupChatSync.this.playerChatMsgCountPeriod::clearAll, 2 * 20, 10 * 20);
         }
     }
 

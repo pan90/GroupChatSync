@@ -30,14 +30,16 @@ public class MessageListener implements Listener {
         if ("游戏消息同步开启".equals(event.getMessage())) {
             this.plugin.getConfigManager().setGameChatSyncEnable(true);
             this.plugin.sendMessageToGroupLater("游戏消息同步已开启");
-            this.plugin.sendMessageToGameLater("游戏消息同步已开启，您的聊天消息可能会被同步到QQ群聊。");
+            // todo
+//            this.plugin.sendMessageToGameLater("游戏消息同步已开启，您的聊天消息可能会被同步到QQ群聊。");
             return true;
         }
 
         if ("游戏消息同步关闭".equals(event.getMessage())) {
             this.plugin.getConfigManager().setGameChatSyncEnable(false);
             this.plugin.sendMessageToGroupLater("游戏消息同步已关闭");
-            this.plugin.sendMessageToGameLater("游戏消息同步已关闭，您的聊天消息将不会被同步到QQ群聊。");
+            // todo
+//            this.plugin.sendMessageToGameLater("游戏消息同步已关闭，您的聊天消息将不会被同步到QQ群聊。");
             return true;
         }
 
@@ -85,7 +87,7 @@ public class MessageListener implements Listener {
 
         if (name == null) return; // 无法获取玩家ID
 
-        this.plugin.sendMessageToGameLater("<" + name + "> " + message);
+        this.plugin.sendMessageToGameLater(new GroupMessage(name, event.getSenderID(), message));
     }
 
     @EventHandler
@@ -103,6 +105,15 @@ public class MessageListener implements Listener {
             return;
         }
 
+        // 由机器人转发消息到QQ
+        final String prefix = "#";
+        String msg = event.getMessage();
+        if (!msg.startsWith(prefix)) return;
+
+        // 截取真正的消息
+        msg = msg.substring(prefix.length());
+
+
         // 游戏内聊天同步功能被禁用。
         if (!this.plugin.getConfigManager().isGameChatSyncEnable()) return;
 
@@ -114,9 +125,8 @@ public class MessageListener implements Listener {
         // 周期内消息数量加一
         this.plugin.getPlayerMessageCountPeriod().addCount(player);
 
-        final String message = "<" + event.getPlayer().getName() + "> " + event.getMessage();
 
         // 消息进入队列等待转发
-        this.plugin.sendMessageToGroupLater(message);
+        this.plugin.sendMessageToGroupLater("<" + player.getName() + "> " + msg);
     }
 }
